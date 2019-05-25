@@ -5,6 +5,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Random
 
 
 
@@ -51,17 +52,42 @@ photoArray =
 
 type Msg
     = ClickedPhoto String
+    | ClickedSize ThumbnailSize
     | ClickedSurpriseMe
+    | GotSelectedIndex Int
 
 
-update : Msg -> Model -> Model
+getPhotoUrl : Int -> String
+getPhotoUrl index =
+    photoArray
+        |> Array.get index
+        |> Maybe.map .url
+        |> Maybe.withDefault ""
+
+
+randomPhotoPicker : Random.Generator Int
+randomPhotoPicker =
+    Random.int 0 (Array.length photoArray - 1)
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ClickedPhoto url ->
-            { model | selectedUrl = url }
+            ( { model | selectedUrl = url }, Cmd.none )
+
+        ClickedSize size ->
+            ( { model | chosenSize = size }, Cmd.none )
 
         ClickedSurpriseMe ->
-            model
+            ( model, Random.generate GotSelectedIndex randomPhotoPicker )
+
+        GotSelectedIndex index ->
+            ( { model | selectedUrl = getPhotoUrl index }, Cmd.none )
+
+
+
+-- VIEW
 
 
 urlPrefix : String
@@ -79,11 +105,19 @@ viewThumbnail selectedUrl { url } =
         []
 
 
-viewSizeChooser : ThumbnailSize -> Html Msg
-viewSizeChooser size =
+viewSizeChooser : ThumbnailSize -> ThumbnailSize -> Html Msg
+viewSizeChooser chosenSize size =
     label
         []
-        [ input [ name "size", type_ "radio" ] [], text <| sizeToString <| size ]
+        [ input
+            [ name "size"
+            , onClick <| ClickedSize <| size
+            , type_ "radio"
+            , checked (chosenSize == size)
+            ]
+            []
+        , text <| sizeToString <| size
+        ]
 
 
 sizeToString : ThumbnailSize -> String
@@ -105,7 +139,7 @@ view { chosenSize, photos, selectedUrl } =
         [ h1 [] [ text "Photo Groove" ]
         , button [ onClick ClickedSurpriseMe ] [ text "Surprise Me!" ]
         , h3 [] [ text "Thumbnail Size:" ]
-        , div [ id "choose-size" ] (List.map viewSizeChooser [ Small, Medium, Large ])
+        , div [ id "choose-size" ] (List.map (viewSizeChooser chosenSize) [ Small, Medium, Large ])
         , div [ class <| sizeToString <| chosenSize, id "thumbnails" ] (List.map (viewThumbnail selectedUrl) photos)
         , img [ class "large", src (urlPrefix ++ "large/" ++ selectedUrl) ] []
         ]
@@ -115,9 +149,11 @@ view { chosenSize, photos, selectedUrl } =
 -- MAIN
 
 
+main : Program () Model Msg
 main =
-    Browser.sandbox
-        { init = initialModel
+    Browser.element
+        { init = always ( initialModel, Cmd.none )
+        , subscriptions = always Sub.none
         , update = update
         , view = view
         }
