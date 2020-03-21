@@ -5,6 +5,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Random
 
 
 
@@ -49,19 +50,28 @@ type Msg
     = ClickedPhoto String
     | ClickedSize ThumbnailSize
     | ClickedSurpriseMe
+    | GotRandomPhoto Photo
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ClickedPhoto url ->
-            { model | selectedUrl = url }
+            ( { model | selectedUrl = url }, Cmd.none )
 
         ClickedSize size ->
-            { model | chosenSize = size }
+            ( { model | chosenSize = size }, Cmd.none )
 
         ClickedSurpriseMe ->
-            { model | selectedUrl = "2.jpeg" }
+            case model.photos of
+                head :: tail ->
+                    ( model, Random.generate GotRandomPhoto (Random.uniform head tail) )
+
+                [] ->
+                    ( model, Cmd.none )
+
+        GotRandomPhoto { url } ->
+            ( { model | selectedUrl = url }, Cmd.none )
 
 
 
@@ -83,16 +93,29 @@ viewThumbnail selectedUrl { url } =
         []
 
 
-viewSizeChooser : ThumbnailSize -> Html Msg
-viewSizeChooser size =
+viewSizeChooser : ThumbnailSize -> ThumbnailSize -> Html Msg
+viewSizeChooser chosenSize size =
     label []
-        [ input [ type_ "radio", name "size", onClick (ClickedSize size) ] []
+        [ input [ type_ "radio", name "size", onClick (ClickedSize size), checked (chosenSize == size) ] []
         , text (sizeToString size)
         ]
 
 
 sizeToString : ThumbnailSize -> String
 sizeToString size =
+    case size of
+        Small ->
+            "Small"
+
+        Medium ->
+            "Medium"
+
+        Large ->
+            "Large"
+
+
+sizeToClass : ThumbnailSize -> String
+sizeToClass size =
     case size of
         Small ->
             "small"
@@ -110,17 +133,19 @@ view { chosenSize, photos, selectedUrl } =
         [ h1 [] [ text "Photo Groove" ]
         , button [ onClick ClickedSurpriseMe ] [ text "Surprise me!" ]
         , h3 [] [ text "Thumbnail Size:" ]
-        , div [ id "choose-size" ] (List.map viewSizeChooser [ Small, Medium, Large ])
-        , div [ id "thumbnails", class (sizeToString chosenSize) ] (List.map (viewThumbnail selectedUrl) photos)
+        , div [ id "choose-size" ] (List.map (viewSizeChooser chosenSize) [ Small, Medium, Large ])
+        , div [ id "thumbnails", class (sizeToClass chosenSize) ] (List.map (viewThumbnail selectedUrl) photos)
         , img [ class "large", src (urlPrefix ++ "large/" ++ selectedUrl) ] []
         ]
 
 
+main : Program () Model Msg
 main =
-    Browser.sandbox
-        { init = initialModel
+    Browser.element
+        { init = always ( initialModel, Cmd.none )
         , update = update
         , view = view
+        , subscriptions = always Sub.none
         }
 
 
