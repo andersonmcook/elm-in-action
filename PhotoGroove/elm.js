@@ -6286,7 +6286,7 @@ var $author$project$PhotoGroove$getPhotos = $elm$http$Http$get(
 	});
 var $author$project$PhotoGroove$Large = {$: 'Large'};
 var $author$project$PhotoGroove$Loading = {$: 'Loading'};
-var $author$project$PhotoGroove$initialModel = {chosenSize: $author$project$PhotoGroove$Large, status: $author$project$PhotoGroove$Loading};
+var $author$project$PhotoGroove$initialModel = {chosenSize: $author$project$PhotoGroove$Large, hue: 0, noise: 0, ripple: 0, status: $author$project$PhotoGroove$Loading};
 var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $author$project$PhotoGroove$Errored = function (a) {
@@ -6561,7 +6561,7 @@ var $author$project$PhotoGroove$update = F2(
 							status: A2($author$project$PhotoGroove$selectUrl, url, model.status)
 						}),
 					$elm$core$Platform$Cmd$none);
-			default:
+			case 'GotPhotos':
 				if (msg.a.$ === 'Ok') {
 					if (msg.a.a.b) {
 						var _v3 = msg.a.a;
@@ -6595,6 +6595,27 @@ var $author$project$PhotoGroove$update = F2(
 							}),
 						$elm$core$Platform$Cmd$none);
 				}
+			case 'SlidHue':
+				var hue = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{hue: hue}),
+					$elm$core$Platform$Cmd$none);
+			case 'SlidNoise':
+				var noise = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{noise: noise}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				var ripple = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{ripple: ripple}),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
 var $elm$json$Json$Encode$string = _Json_wrap;
@@ -6611,6 +6632,15 @@ var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $author$project$PhotoGroove$ClickedSurpriseMe = {$: 'ClickedSurpriseMe'};
 var $author$project$PhotoGroove$Medium = {$: 'Medium'};
+var $author$project$PhotoGroove$SlidHue = function (a) {
+	return {$: 'SlidHue', a: a};
+};
+var $author$project$PhotoGroove$SlidNoise = function (a) {
+	return {$: 'SlidNoise', a: a};
+};
+var $author$project$PhotoGroove$SlidRipple = function (a) {
+	return {$: 'SlidRipple', a: a};
+};
 var $author$project$PhotoGroove$Small = {$: 'Small'};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
@@ -6650,6 +6680,79 @@ var $elm$html$Html$Attributes$src = function (url) {
 		'src',
 		_VirtualDom_noJavaScriptOrHtmlUri(url));
 };
+var $elm$json$Json$Encode$int = _Json_wrap;
+var $elm$html$Html$label = _VirtualDom_node('label');
+var $elm$html$Html$Attributes$max = $elm$html$Html$Attributes$stringProperty('max');
+var $elm$virtual_dom$VirtualDom$node = function (tag) {
+	return _VirtualDom_node(
+		_VirtualDom_noScript(tag));
+};
+var $elm$html$Html$node = $elm$virtual_dom$VirtualDom$node;
+var $elm$json$Json$Decode$at = F2(
+	function (fields, decoder) {
+		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
+	});
+var $author$project$PhotoGroove$onSlide = function (toMsg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'slide',
+		A2(
+			$elm$json$Json$Decode$map,
+			toMsg,
+			A2(
+				$elm$json$Json$Decode$at,
+				_List_fromArray(
+					['detail', 'userSlidTo']),
+				$elm$json$Json$Decode$int)));
+};
+var $elm$virtual_dom$VirtualDom$property = F2(
+	function (key, value) {
+		return A2(
+			_VirtualDom_property,
+			_VirtualDom_noInnerHtmlOrFormAction(key),
+			_VirtualDom_noJavaScriptOrHtmlUri(value));
+	});
+var $elm$html$Html$Attributes$property = $elm$virtual_dom$VirtualDom$property;
+var $author$project$PhotoGroove$viewFilter = F3(
+	function (toMsg, name, magnitude) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('filter-slider')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text(name)
+						])),
+					A3(
+					$elm$html$Html$node,
+					'range-slider',
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$max('11'),
+							A2(
+							$elm$html$Html$Attributes$property,
+							'val',
+							$elm$json$Json$Encode$int(magnitude)),
+							$author$project$PhotoGroove$onSlide(toMsg)
+						]),
+					_List_Nil),
+					A2(
+					$elm$html$Html$label,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text(
+							$elm$core$String$fromInt(magnitude))
+						]))
+				]));
+	});
 var $author$project$PhotoGroove$ClickedSize = function (a) {
 	return {$: 'ClickedSize', a: a};
 };
@@ -6663,7 +6766,6 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 	});
 var $elm$html$Html$Attributes$checked = $elm$html$Html$Attributes$boolProperty('checked');
 var $elm$html$Html$input = _VirtualDom_node('input');
-var $elm$html$Html$label = _VirtualDom_node('label');
 var $elm$html$Html$Attributes$name = $elm$html$Html$Attributes$stringProperty('name');
 var $author$project$PhotoGroove$sizeToString = function (size) {
 	switch (size.$) {
@@ -6749,7 +6851,11 @@ var $author$project$PhotoGroove$viewThumbnail = F2(
 			_List_Nil);
 	});
 var $author$project$PhotoGroove$viewLoaded = F3(
-	function (photos, selectedUrl, chosenSize) {
+	function (photos, selectedUrl, _v0) {
+		var chosenSize = _v0.chosenSize;
+		var hue = _v0.hue;
+		var noise = _v0.noise;
+		var ripple = _v0.ripple;
 		return _List_fromArray(
 			[
 				A2(
@@ -6768,6 +6874,18 @@ var $author$project$PhotoGroove$viewLoaded = F3(
 				_List_fromArray(
 					[
 						$elm$html$Html$text('Surprise me!')
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('filters')
+					]),
+				_List_fromArray(
+					[
+						A3($author$project$PhotoGroove$viewFilter, $author$project$PhotoGroove$SlidHue, 'Hue', hue),
+						A3($author$project$PhotoGroove$viewFilter, $author$project$PhotoGroove$SlidRipple, 'Ripple', ripple),
+						A3($author$project$PhotoGroove$viewFilter, $author$project$PhotoGroove$SlidNoise, 'Noise', noise)
 					])),
 				A2(
 				$elm$html$Html$h3,
@@ -6822,7 +6940,7 @@ var $author$project$PhotoGroove$view = function (model) {
 				case 'Loaded':
 					var photos = _v0.a;
 					var selectedUrl = _v0.b;
-					return A3($author$project$PhotoGroove$viewLoaded, photos, selectedUrl, model.chosenSize);
+					return A3($author$project$PhotoGroove$viewLoaded, photos, selectedUrl, model);
 				case 'Loading':
 					return _List_Nil;
 				default:
