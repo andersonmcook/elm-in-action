@@ -1,4 +1,4 @@
-module PhotoGroove exposing (main)
+port module PhotoGroove exposing (main)
 
 import Array exposing (Array)
 import Browser
@@ -29,6 +29,18 @@ type Status
     | Errored String
 
 
+type alias Filter =
+    { name : String
+    , amount : Float
+    }
+
+
+type alias FilterOptions =
+    { url : String
+    , filters : List Filter
+    }
+
+
 type alias Photo =
     { url : String
     , size : Int
@@ -53,6 +65,13 @@ initialModel =
     , ripple = 0
     , status = Loading
     }
+
+
+
+-- PORTS
+
+
+port setFilters : FilterOptions -> Cmd msg
 
 
 
@@ -94,8 +113,8 @@ type Msg
     | SlidRipple Int
 
 
-noOp : Model -> ( Model, Cmd Msg )
-noOp model =
+noCmd : Model -> ( Model, Cmd Msg )
+noCmd model =
     ( model, Cmd.none )
 
 
@@ -112,14 +131,37 @@ selectUrl url status =
             status
 
 
+applyFilters : Model -> ( Model, Cmd Msg )
+applyFilters model =
+    case model.status of
+        Loaded photos selectedUrl ->
+            ( model
+            , setFilters
+                { url = urlPrefix ++ "large/" ++ selectedUrl
+                , filters =
+                    List.map (\( name, amount ) -> { name = name, amount = toFloat amount / 11 })
+                        [ ( "Hue", model.hue )
+                        , ( "Noise", model.noise )
+                        , ( "Ripple", model.ripple )
+                        ]
+                }
+            )
+
+        Loading ->
+            noCmd model
+
+        Errored _ ->
+            noCmd model
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ClickedPhoto url ->
-            ( { model | status = selectUrl url model.status }, Cmd.none )
+            applyFilters { model | status = selectUrl url model.status }
 
         ClickedSize size ->
-            ( { model | chosenSize = size }, Cmd.none )
+            noCmd { model | chosenSize = size }
 
         ClickedSurpriseMe ->
             case model.status of
@@ -129,34 +171,34 @@ update msg model =
                             Random.uniform head tail
 
                 Loaded [] _ ->
-                    noOp model
+                    noCmd model
 
                 Loading ->
-                    noOp model
+                    noCmd model
 
                 Errored _ ->
-                    noOp model
+                    noCmd model
 
         GotRandomPhoto { url } ->
-            ( { model | status = selectUrl url model.status }, Cmd.none )
+            applyFilters { model | status = selectUrl url model.status }
 
         GotPhotos (Ok (head :: tail)) ->
-            ( { model | status = Loaded (head :: tail) head.url }, Cmd.none )
+            applyFilters { model | status = Loaded (head :: tail) head.url }
 
         GotPhotos (Ok []) ->
-            ( { model | status = Errored "0 photos found" }, Cmd.none )
+            noCmd { model | status = Errored "0 photos found" }
 
         GotPhotos (Err _) ->
-            ( { model | status = Errored "Server error!" }, Cmd.none )
+            noCmd { model | status = Errored "Server error!" }
 
         SlidHue hue ->
-            ( { model | hue = hue }, Cmd.none )
+            applyFilters { model | hue = hue }
 
         SlidNoise noise ->
-            ( { model | noise = noise }, Cmd.none )
+            applyFilters { model | noise = noise }
 
         SlidRipple ripple ->
-            ( { model | ripple = ripple }, Cmd.none )
+            applyFilters { model | ripple = ripple }
 
 
 
@@ -224,7 +266,7 @@ viewLoaded photos selectedUrl { chosenSize, hue, noise, ripple } =
     , h3 [] [ text "Thumbnail Size:" ]
     , div [ id "choose-size" ] (List.map (viewSizeChooser chosenSize) [ Small, Medium, Large ])
     , div [ id "thumbnails", class (sizeToClass chosenSize) ] (List.map (viewThumbnail selectedUrl) photos)
-    , img [ class "large", src (urlPrefix ++ "large/" ++ selectedUrl) ] []
+    , canvas [ id "main-canvas", class "large" ] []
     ]
 
 
