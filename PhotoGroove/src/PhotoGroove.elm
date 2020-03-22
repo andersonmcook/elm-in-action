@@ -54,6 +54,7 @@ type alias Model =
     , noise : Int
     , ripple : Int
     , status : Status
+    , activity : String
     }
 
 
@@ -64,6 +65,7 @@ initialModel =
     , noise = 0
     , ripple = 0
     , status = Loading
+    , activity = ""
     }
 
 
@@ -72,6 +74,9 @@ initialModel =
 
 
 port setFilters : FilterOptions -> Cmd msg
+
+
+port activityChanges : (String -> msg) -> Sub msg
 
 
 
@@ -106,6 +111,7 @@ type Msg
     = ClickedPhoto String
     | ClickedSize ThumbnailSize
     | ClickedSurpriseMe
+    | GotActivity String
     | GotRandomPhoto Photo
     | GotPhotos (Result Http.Error (List Photo))
     | SlidHue Int
@@ -178,6 +184,9 @@ update msg model =
 
                 Errored _ ->
                     noCmd model
+
+        GotActivity activity ->
+            noCmd { model | activity = activity }
 
         GotRandomPhoto { url } ->
             applyFilters { model | status = selectUrl url model.status }
@@ -255,9 +264,10 @@ sizeToClass size =
 
 
 viewLoaded : List Photo -> String -> Model -> List (Html Msg)
-viewLoaded photos selectedUrl { chosenSize, hue, noise, ripple } =
+viewLoaded photos selectedUrl { activity, chosenSize, hue, noise, ripple } =
     [ h1 [] [ text "Photo Groove" ]
     , button [ onClick ClickedSurpriseMe ] [ text "Surprise me!" ]
+    , div [ class "activity" ] [ text activity ]
     , div [ class "filters" ]
         [ viewFilter SlidHue "Hue" hue
         , viewFilter SlidRipple "Ripple" ripple
@@ -298,13 +308,35 @@ view model =
                 [ text <| "Error: " ++ error ]
 
 
-main : Program () Model Msg
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    activityChanges GotActivity
+
+
+
+-- INIT
+
+
+init : Float -> ( Model, Cmd Msg )
+init pastaVersion =
+    ( { initialModel | activity = "Initializing Pasta v" ++ String.fromFloat pastaVersion }, getPhotos )
+
+
+
+-- MAIN
+
+
+main : Program Float Model Msg
 main =
     Browser.element
-        { init = always ( initialModel, getPhotos )
+        { init = init
         , update = update
         , view = view
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
 
 
