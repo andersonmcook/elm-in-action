@@ -1,4 +1,4 @@
-port module PhotoGroove exposing (Model, Msg(..), Photo, initialModel, main, photoDecoder, update, view)
+port module PhotoGroove exposing (Model, Msg(..), Photo, Status(..), initialModel, main, photoDecoder, photoFromUrl, update, urlPrefix, view)
 
 import Array exposing (Array)
 import Browser
@@ -349,3 +349,8 @@ onSlide toMsg =
     on "slide" <|
         Json.Decode.map toMsg <|
             at [ "detail", "userSlidTo" ] int
+
+
+photoFromUrl : String -> Photo
+photoFromUrl url =
+    { url = url, size = 0, title = "" }
