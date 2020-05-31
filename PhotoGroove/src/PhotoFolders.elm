@@ -22,6 +22,13 @@ type alias Photo =
     }
 
 
+type alias JsonPhoto =
+    { relatedUrls : List String
+    , size : Int
+    , title : String
+    }
+
+
 type Folder
     = Folder
         { expanded : Bool
@@ -73,84 +80,78 @@ init _ =
 
 
 -- DECODERS
--- hardcoded for now
+
+
+finishPhoto : ( String, JsonPhoto ) -> ( String, Photo )
+finishPhoto ( url, json ) =
+    ( url
+    , { relatedUrls = json.relatedUrls
+      , size = json.size
+      , title = json.title
+      , url = url
+      }
+    )
+
+
+fromPairs : List ( String, JsonPhoto ) -> Dict String Photo
+fromPairs =
+    Dict.fromList << List.map finishPhoto
+
+
+jsonPhotoDecoder : Decoder JsonPhoto
+jsonPhotoDecoder =
+    Decode.succeed JsonPhoto
+        |> required "related_photos" (list string)
+        |> required "size" int
+        |> required "title" string
+
+
+photosDecoder : Decoder (Dict String Photo)
+photosDecoder =
+    Decode.map fromPairs <| Decode.keyValuePairs jsonPhotoDecoder
+
+
+folderDecoder : Decoder Folder
+folderDecoder =
+    Decode.succeed folderFromJson
+        |> required "name" string
+        |> required "photos" photosDecoder
+        |> required "subfolders" (Decode.lazy (\_ -> list folderDecoder))
+
+
+folderFromJson : String -> Dict String Photo -> List Folder -> Folder
+folderFromJson name photos subfolders =
+    Folder
+        { expanded = True
+        , name = name
+        , photoUrls = Dict.keys photos
+        , subfolders = subfolders
+        }
+
+
+modelPhotosDecoder : Decoder (Dict String Photo)
+modelPhotosDecoder =
+    Decode.succeed modelPhotosFromJson
+        |> required "photos" photosDecoder
+        |> required "subfolders" (Decode.lazy (\_ -> list modelPhotosDecoder))
+
+
+modelPhotosFromJson : Dict String Photo -> List (Dict String Photo) -> Dict String Photo
+modelPhotosFromJson folderPhotos subfolderPhotos =
+    List.foldl Dict.union folderPhotos subfolderPhotos
 
 
 modelDecoder : Decoder Model
 modelDecoder =
-    Decode.succeed
-        { selectedPhotoUrl = Just "trevi"
-        , root =
-            Folder
-                { expanded = True
-                , name = "Photos"
-                , photoUrls = []
-                , subfolders =
-                    [ Folder
-                        { expanded = True
-                        , name = "2016"
-                        , photoUrls = [ "trevi", "coli" ]
-                        , subfolders =
-                            [ Folder
-                                { expanded = True
-                                , name = "outdoors"
-                                , photoUrls = []
-                                , subfolders = []
-                                }
-                            , Folder
-                                { expanded = True
-                                , name = "indoors"
-                                , photoUrls = [ "fresco" ]
-                                , subfolders = []
-                                }
-                            ]
-                        }
-                    , Folder
-                        { expanded = True
-                        , name = "2017"
-                        , photoUrls = []
-                        , subfolders =
-                            [ Folder
-                                { expanded = True
-                                , name = "outdoors"
-                                , photoUrls = []
-                                , subfolders = []
-                                }
-                            , Folder
-                                { expanded = True
-                                , name = "indoors"
-                                , photoUrls = []
-                                , subfolders = []
-                                }
-                            ]
-                        }
-                    ]
-                }
-        , photos =
-            Dict.fromList
-                [ ( "trevi"
-                  , { title = "Trevi"
-                    , relatedUrls = [ "coli", "fresco" ]
-                    , size = 34
-                    , url = "trevi"
-                    }
-                  )
-                , ( "fresco"
-                  , { title = "Fresco"
-                    , relatedUrls = [ "trevi" ]
-                    , size = 46
-                    , url = "fresco"
-                    }
-                  )
-                , ( "coli"
-                  , { title = "Coliseum"
-                    , relatedUrls = [ "trevi", "fresco" ]
-                    , size = 36
-                    , url = "coli"
-                    }
-                  )
-                ]
-        }
+    Decode.map2
+        (\photos root ->
+            { photos = photos
+            , root = root
+            , selectedPhotoUrl = Nothing
+            }
+        )
+        modelPhotosDecoder
+        folderDecoder
 
 
 
@@ -236,6 +237,11 @@ view model =
         ]
 
 
+viewPhoto : String -> Html Msg
+viewPhoto url =
+    div [ class "photo", onClick <| ClickedPhoto url ] [ text url ]
+
+
 viewSelectedPhoto : Photo -> Html Msg
 viewSelectedPhoto photo =
     div [ class "selected-photo" ]
@@ -259,19 +265,24 @@ viewRelatedPhoto url =
 
 
 viewFolder : FolderPath -> Folder -> Html Msg
-viewFolder path (Folder { expanded, name, subfolders }) =
+viewFolder path (Folder { expanded, name, photoUrls, subfolders }) =
     let
         viewSubfolder : Int -> Folder -> Html Msg
         viewSubfolder index subfolder =
             viewFolder (appendIndex index path) subfolder
 
+        folderLabel : Html Msg
         folderLabel =
             label [ onClick <| ClickedFolder path ] [ text name ]
+
+        contents : List (Html Msg)
+        contents =
+            List.append (List.indexedMap viewSubfolder subfolders) (List.map viewPhoto photoUrls)
     in
     if expanded then
         div [ class "folder expanded" ]
             [ label [ onClick <| ClickedFolder path ] [ text name ]
-            , div [ class "contents" ] <| List.indexedMap viewSubfolder subfolders
+            , div [ class "contents" ] contents
             ]
 
     else
