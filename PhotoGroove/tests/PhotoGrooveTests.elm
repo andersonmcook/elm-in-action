@@ -5,7 +5,7 @@ import Fuzz exposing (Fuzzer, int, list, string)
 import Html.Attributes as Attrs exposing (src)
 import Json.Decode as Decode exposing (decodeValue)
 import Json.Encode as Encode
-import PhotoGroove exposing (Model, Msg(..), Photo, Status(..), initialModel, photoDecoder, photoFromUrl, update, urlPrefix, view)
+import PhotoGallery exposing (Model, Msg(..), Photo, Status(..), initialModel, photoDecoder, photoFromUrl, update, urlPrefix, view)
 import Test exposing (..)
 import Test.Html.Event as Event
 import Test.Html.Query as Query

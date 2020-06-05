@@ -1,28 +1,36 @@
 module Main exposing (main)
 
 import Browser exposing (Document)
+import Browser.Navigation as Nav
 import Html exposing (Html, a, footer, h1, li, nav, text, ul)
 import Html.Attributes exposing (classList, href)
 import Html.Lazy exposing (lazy)
+import PhotoFolders as Folders
+import PhotoGallery as Gallery
+import Url exposing (Url)
+import Url.Parser as Parser exposing ((</>), Parser, s, string)
 
 
 
 -- MODEL
 
 
-type alias Model =
-    { page : Page }
-
-
 type Page
-    = Gallery
-    | Folders
+    = FoldersPage Folders.Model
+    | GalleryPage Gallery.Model
     | NotFound
 
 
-initialModel : Model
-initialModel =
-    { page = Gallery }
+type Route
+    = Folders
+    | Gallery
+    | SelectedPhoto String
+
+
+type alias Model =
+    { key : Nav.Key
+    , page : Page
+    }
 
 
 
@@ -36,30 +44,30 @@ view model =
             text "This isn't even my final form!"
     in
     { title = "Photo Groove, SPA Style"
-    , body = [ lazy viewHeader model.page, content, viewFooter ]
+    , body = [ lazy viewHeader model, content, viewFooter ]
     }
 
 
-viewLink : { caption : String, targetPage : Page, url : String } -> Page -> Html Msg
-viewLink { caption, targetPage, url } page =
-    li [ classList [ ( "active", page == targetPage ) ] ]
+viewLink : Route -> { caption : String, url : String } -> Page -> Html Msg
+viewLink route { caption, url } page =
+    li [ classList [ ( "active", isActive { link = route, page = page } ) ] ]
         [ a [ href url ] [ text caption ]
         ]
 
 
-viewLinks : Page -> Html Msg
-viewLinks page =
+viewLinks : Page -> Route -> Html Msg
+viewLinks page route =
     ul []
-        [ viewLink { caption = "Folders", targetPage = Folders, url = "/" } page
-        , viewLink { caption = "Gallery", targetPage = Gallery, url = "/gallery" } page
+        [ viewLink route { caption = "Folders", url = "/" } page
+        , viewLink route { caption = "Gallery", url = "/gallery" } page
         ]
 
 
-viewHeader : Page -> Html Msg
-viewHeader page =
+viewHeader : Model -> Html Msg
+viewHeader { page, route } =
     nav []
         [ h1 [] [ text "Photo Groove" ]
-        , viewLinks page
+        , viewLinks page route
         ]
 
 
@@ -68,17 +76,47 @@ viewFooter =
     footer [] [ text "'One is never alone with a rubber duck.' - Douglas Adams" ]
 
 
+isActive : { link : Route, page : Page } -> Bool
+isActive { link, page } =
+    case ( link, page ) of
+        ( Folders, FoldersPage _ ) ->
+            True
+
+        ( Folders, _ ) ->
+            False
+
+        ( Gallery, GalleryPage _ ) ->
+            True
+
+        ( Gallery, _ ) ->
+            False
+
+        ( SelectedPhoto _, _ ) ->
+            False
+
+
 
 -- UPDATE
 
 
 type Msg
-    = NothingYet
+    = ChangedUrl Url
+    | ClickedLink Browser.UrlRequest
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        ClickedLink urlRequest ->
+            case urlRequest of
+                Browser.External href ->
+                    ( model, Nav.load href )
+
+                Browser.Internal url ->
+                    ( model, Nav.pushUrl model.key (Url.toString url) )
+
+        ChangedUrl url ->
+            ( { model | page = urlToPage url }, Cmd.none )
 
 
 
@@ -91,13 +129,49 @@ subscriptions =
 
 
 
+-- INIT
+
+
+init : () -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+    ( { key = key, page = urlToPage url }, Cmd.none )
+
+
+parser : Parser (Route -> a) a
+parser =
+    Parser.oneOf
+        [ Parser.map Folders Parser.top
+        , Parser.map Gallery (s "gallery")
+        , Parser.map SelectedPhoto (s "photos" </> string)
+        ]
+
+
+urlToPage : Url -> Page
+urlToPage url =
+    case Parser.parse parser url of
+        Just Folders ->
+            FoldersPage <| Tuple.first <| Folders.init ()
+
+        Just Gallery ->
+            GalleryPage <| Tuple.first <| Gallery.init 1
+
+        Just (SelectedPhoto filename) ->
+            FoldersPage <| Tuple.first <| Folders.init ()
+
+        Nothing ->
+            NotFound
+
+
+
 -- MAIN
 
 
 main : Program () Model Msg
 main =
-    Browser.document
-        { init = always ( initialModel, Cmd.none )
+    Browser.application
+        { init = init
+        , onUrlChange = ChangedUrl
+        , onUrlRequest = ClickedLink
         , subscriptions = subscriptions
         , update = update
         , view = view

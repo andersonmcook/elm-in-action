@@ -1,4 +1,4 @@
-module PhotoFolders exposing (main)
+module PhotoFolders exposing (Model, Msg, init, update, view)
 
 import Browser
 import Dict exposing (Dict)
@@ -297,17 +297,3 @@ appendIndex index path =
 
         Subfolder subfolderIndex remainingPath ->
             Subfolder subfolderIndex (appendIndex index remainingPath)
-
-
-
--- MAIN
-
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = always Sub.none
-        }
