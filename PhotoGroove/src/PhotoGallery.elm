@@ -1,8 +1,6 @@
-port module PhotoGallery exposing (Model, Msg, init, update, view)
+port module PhotoGallery exposing (Model, Msg, init, subscriptions, update, view)
 
-import Array exposing (Array)
-import Browser
-import Html exposing (..)
+import Html exposing (Attribute, Html, button, canvas, div, h3, img, input, label, node, text)
 import Html.Attributes as Attrs exposing (checked, class, classList, id, name, src, type_)
 import Html.Events exposing (on, onClick)
 import Http
@@ -140,7 +138,7 @@ selectUrl url status =
 applyFilters : Model -> ( Model, Cmd Msg )
 applyFilters model =
     case model.status of
-        Loaded photos selectedUrl ->
+        Loaded _ selectedUrl ->
             ( model
             , setFilters
                 { url = urlPrefix ++ "large/" ++ selectedUrl
@@ -265,8 +263,7 @@ sizeToClass size =
 
 viewLoaded : List Photo -> String -> Model -> List (Html Msg)
 viewLoaded photos selectedUrl { activity, chosenSize, hue, noise, ripple } =
-    [ h1 [] [ text "Photo Groove" ]
-    , button [ onClick ClickedSurpriseMe ] [ text "Surprise me!" ]
+    [ button [ onClick ClickedSurpriseMe ] [ text "Surprise me!" ]
     , div [ class "activity" ] [ text activity ]
     , div [ class "filters" ]
         [ viewFilter SlidHue "Hue" hue
@@ -327,20 +324,6 @@ init pastaVersion =
 
 
 
--- MAIN
-
-
-main : Program Float Model Msg
-main =
-    Browser.element
-        { init = init
-        , update = update
-        , view = view
-        , subscriptions = subscriptions
-        }
-
-
-
 -- CUSTOM
 
 
@@ -349,8 +332,3 @@ onSlide toMsg =
     on "slide" <|
         Json.Decode.map toMsg <|
             at [ "detail", "userSlidTo" ] int
-
-
-photoFromUrl : String -> Photo
-photoFromUrl url =
-    { url = url, size = 0, title = "" }
